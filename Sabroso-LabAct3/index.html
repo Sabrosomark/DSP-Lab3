@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teachable Machine Image Model</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        #webcam-container {
+            margin-bottom: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .label {
+            text-align: center;
+            margin: 10px 0;
+        }
+
+        .progress-bar-container {
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            width: 200px;
+            height: 20px;
+            margin-top: 5px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 5px;
+            background-color: #4caf50;
+            width: 0%;
+        }
+    </style>
+</head>
+<body>
+    <div>Teachable Machine Image Model</div>
+    <button type="button" onclick="startWebcam()">Start</button>
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+
+    <script type="text/javascript">
+        function loadScripts(src, callback) {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = callback;
+            document.head.appendChild(script);
+        }
+
+        loadScripts("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js", () => {
+            loadScripts("https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js", initializeModel);
+        });
+
+        const URL = "./";  
+
+        let model, webcam, labelContainer, maxPredictions;
+
+        const classNames = ["Happy", "Sad", "Neutral", "Angry", "Shock"];
+
+        async function initializeModel() {
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            labelContainer = document.getElementById("label-container");
+
+            for (let i = 0; i < maxPredictions; i++) {
+                const labelDiv = document.createElement("div");
+                labelDiv.className = "label";
+                const label = document.createElement("span");
+                label.innerHTML = classNames[i]; 
+
+                const progressBarContainer = document.createElement("div");
+                progressBarContainer.className = "progress-bar-container";
+
+                const progressBar = document.createElement("div");
+                progressBar.className = "progress-bar";
+
+                progressBarContainer.appendChild(progressBar);
+                labelDiv.appendChild(label);
+                labelDiv.appendChild(progressBarContainer);
+
+                labelContainer.appendChild(labelDiv);
+            }
+        }
+
+        async function startWebcam() {
+            const flip = true;
+            webcam = new tmImage.Webcam(200, 200, flip);
+            await webcam.setup();
+            await webcam.play();
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+            window.requestAnimationFrame(loop);
+        }
+
+        async function loop() {
+            webcam.update(); 
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            const prediction = await model.predict(webcam.canvas);
+
+            for (let i = 0; i < maxPredictions; i++) {
+                const classPrediction = prediction[i];
+                const probability = classPrediction.probability.toFixed(2) * 100;
+
+                const progressBar = document.getElementsByClassName("progress-bar")[i];
+                progressBar.style.width = `${probability}%`;
+            }
+        }
+    </script>
+</body>
+</html>
